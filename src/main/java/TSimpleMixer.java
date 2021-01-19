@@ -18,11 +18,15 @@ public class TSimpleMixer {
   private String exportDir = System.getProperty("user.dir") + "/exports/";
   private double boundaryBuffer = 0.001;
   private ArrayList<String> circleNames;
+  private ArrayList<Rectangle> rectangles;
+  private ArrayList<String> rectNames;
   private String exitConcFilename = "";
   private double[][] currentCircleSet;
   private double[][] bestCircleSet;
   private double bestAvgDiff;
   private double goal = 0.5;
+  private String compName = "comp1";
+  private String geomName = "geom1";
 
   public static void main(String[] args) throws IOException {
     TSimpleMixer demo = new TSimpleMixer();
@@ -37,6 +41,8 @@ public class TSimpleMixer {
   public void init() {
     ModelUtil.initStandalone(true);
     circleNames = new ArrayList<String>();
+    rectangles = new ArrayList<Rectangle>();
+    rectNames = new ArrayList<String>();
     currentCircleSet = null;
   }
 
@@ -55,8 +61,7 @@ public class TSimpleMixer {
     }
 
 //    updateChip();
-    runResultSetup();
-
+    runResultSetup("sol1");
 
     double[][] firstHalf = readFirstHalfConcs(exitConcFilename);
     System.out.println("Original");
@@ -67,6 +72,20 @@ public class TSimpleMixer {
     bestAvgDiff = Math.abs(avg - goal);
     bestCircleSet = null;
     System.out.println("\nAverage Conc: " + avg + "\n");
+
+//    updateChip("sol2");
+//    runResultSetup("sol2");
+//
+//
+//    firstHalf = readFirstHalfConcs(exitConcFilename);
+//    System.out.println("Original");
+//    for (double[] row : firstHalf)
+//      System.out.println(row[0] + " " + row[1]);
+//
+//    avg = getAverageConc(firstHalf);
+//    bestAvgDiff = Math.abs(avg - goal);
+//    bestCircleSet = null;
+//    System.out.println("\nAverage Conc: " + avg + "\n");
 
 ////    double[][] firstHalf = readFirstHalfConcs(exitConcFilename);
 //    int i = 0;
@@ -92,8 +111,9 @@ public class TSimpleMixer {
 //    }
   }
 
-  private void runResultSetup() {
-    model.sol("sol1").runAll();
+  private void runResultSetup(String solName) {
+    model.sol(solName).attach("std1");
+    model.sol(solName).runAll();
 
     model.result("pg1").label("Concentration (tds)");
     model.result("pg1").set("titletype", "custom");
@@ -141,7 +161,7 @@ public class TSimpleMixer {
     //creates an image file of the concentration gradient
     model.result().export().create("img1","pg1","Image");
     model.result().export("img1").set("imagetype", "png");
-    model.result().export("img1").set("pngfilename", exportDir + "concimg_" + i++ + ".png");
+    model.result().export("img1").set("pngfilename", exportDir + "concimg_" + i + ".png");
     model.result().export("img1").run(); //not auto-populated by COMSOL - needed for export to run
 
 
@@ -185,17 +205,26 @@ public class TSimpleMixer {
     }
   }
 
-  private void updateChip() {
+  private void updateChip(String solName) {
 //    removeCircles();
     addRandSizedCircles(10, 0.01,0.05, -5, 1.2, 0, 1);
     String[] circlesArr = new String[circleNames.size()];
     circlesArr = circleNames.toArray(circlesArr);
 //    String[] rectArr = new String[rectNames.size()];
 //    rectArr = rectNames.toArray(rectArr);
+
+
+    model.component("comp1").geom("geom1").create("dif1", "Difference");
+    model.component("comp1").geom("geom1").feature("dif1").selection("input").set("r1", "r2");
+    model.component("comp1").geom("geom1").feature("dif1").selection("input2")
+            .set("c1", "c2", "c3", "c4", "c5", "c6");
+
     model.component("comp1").geom("geom1").create("dif1", "Difference");
 //    model.component("comp1").geom("geom1").feature("dif1").selection("input").set(rectArr);
     model.component("comp1").geom("geom1").feature("dif1").selection("input2").set(circlesArr);
     model.component("comp1").geom("geom1").run();
+    model.component("comp1").geom("geom1").runPre("fin");
+    createSol(solName);
   }
 
   private void removeCircles() {
@@ -231,6 +260,15 @@ public class TSimpleMixer {
 //        System.out.println("Circle radius: " + radius + "   Circle pos: " + posX + ", " + posY);
   }
 
+  public void addRectangle(String name, double posX, double posY, double width, double height) {
+    rectangles.add(new Rectangle(name, posX, posY, width, height));
+    rectNames.add(name);
+    model.component(compName).geom(geomName).create(name, "Rectangle");
+    model.component(compName).geom(geomName).feature(name).set("pos", new double[]{posX, posY});
+    model.component(compName).geom(geomName).feature(name).set("size", new double[]{width, height});
+  }
+
+  //initial run
   public Model run() {
     model = ModelUtil.create("Model");
 
@@ -245,12 +283,14 @@ public class TSimpleMixer {
     model.component("comp1").mesh().create("mesh1");
 
     model.component("comp1").geom("geom1").lengthUnit("mm");
-    model.component("comp1").geom("geom1").create("r1", "Rectangle");
-    model.component("comp1").geom("geom1").feature("r1").set("pos", new int[]{-5, 0});
-    model.component("comp1").geom("geom1").feature("r1").set("size", new double[]{6.2, 1});
-    model.component("comp1").geom("geom1").create("r2", "Rectangle");
-    model.component("comp1").geom("geom1").feature("r2").set("pos", new int[]{-4, -1});
-    model.component("comp1").geom("geom1").feature("r2").set("size", new int[]{1, 3});
+//    model.component("comp1").geom("geom1").create("r1", "Rectangle");
+//    model.component("comp1").geom("geom1").feature("r1").set("pos", new int[]{-5, 0});
+//    model.component("comp1").geom("geom1").feature("r1").set("size", new double[]{6.2, 1});
+//    model.component("comp1").geom("geom1").create("r2", "Rectangle");
+//    model.component("comp1").geom("geom1").feature("r2").set("pos", new int[]{-4, -1});
+//    model.component("comp1").geom("geom1").feature("r2").set("size", new int[]{1, 3});
+    addRectangle("r1", -5, 0, 6.2,1);
+    addRectangle("r2", -4, -1, 1,3);
 
     model.component("comp1").geom("geom1").run();
 
@@ -258,16 +298,24 @@ public class TSimpleMixer {
 
     model.component("comp1").physics().create("tds", "DilutedSpecies", "geom1");
     model.component("comp1").physics("tds").create("in1", "Inflow", 1);
-    model.component("comp1").physics("tds").feature("in1").selection().set(1);
+    model.component("comp1").physics("tds").feature("in1").selection().set(
+            getEdgeNum(getRectEdge("r1","left")));
     model.component("comp1").physics("tds").create("in2", "Inflow", 1);
-    model.component("comp1").physics("tds").feature("in2").selection().set(5, 10);
+    model.component("comp1").physics("tds").feature("in2").selection().set(
+            getEdgeNum(getRectEdge("r2","top")),
+            getEdgeNum(getRectEdge("r2","bottom")));
     model.component("comp1").physics("tds").create("out1", "Outflow", 1);
-    model.component("comp1").physics("tds").feature("out1").selection().set(16);
+    model.component("comp1").physics("tds").feature("out1").selection().set(
+            getEdgeNum(getRectEdge("r1","right")));
     model.component("comp1").physics().create("spf", "LaminarFlow", "geom1");
     model.component("comp1").physics("spf").create("inl1", "InletBoundary", 1);
-    model.component("comp1").physics("spf").feature("inl1").selection().set(1, 5, 10);
+    model.component("comp1").physics("spf").feature("inl1").selection().set(
+            getEdgeNum(getRectEdge("r1","left")),
+            getEdgeNum(getRectEdge("r2","top")),
+            getEdgeNum(getRectEdge("r2","bottom")));
     model.component("comp1").physics("spf").create("out1", "OutletBoundary", 1);
-    model.component("comp1").physics("spf").feature("out1").selection().set(16);
+    model.component("comp1").physics("spf").feature("out1").selection().set(
+            getEdgeNum(getRectEdge("r1","right")));
 
     model.component("comp1").view("view1").axis().set("xmin", -5.154999732971191);
     model.component("comp1").view("view1").axis().set("xmax", 1.3549991846084595);
@@ -282,20 +330,46 @@ public class TSimpleMixer {
     model.study().create("std1");
     model.study("std1").create("stat", "Stationary");
 
-    model.sol().create("sol1");
-    model.sol("sol1").study("std1");
-    model.sol("sol1").attach("std1");
-    model.sol("sol1").create("st1", "StudyStep");
-    model.sol("sol1").create("v1", "Variables");
-    model.sol("sol1").create("s1", "Stationary");
-    model.sol("sol1").feature("s1").create("fc1", "FullyCoupled");
-    model.sol("sol1").feature("s1").create("d1", "Direct");
-    model.sol("sol1").feature("s1").create("i1", "Iterative");
-    model.sol("sol1").feature("s1").feature("i1").create("mg1", "Multigrid");
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").feature("pr").create("sc1", "SCGS");
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").feature("po").create("sc1", "SCGS");
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").feature("cs").create("d1", "Direct");
-    model.sol("sol1").feature("s1").feature().remove("fcDef");
+//    model.sol().create("sol1");
+//    model.sol("sol1").study("std1");
+
+    createSol("sol1");
+
+    return model;
+  }
+
+//  private void recreateSol(String studyStepName, String varName, String stationaryName) {
+//    model.sol("sol1").feature().remove(studyStepName);
+//    model.sol("sol1").feature().remove(varName);
+//    model.sol("sol1").feature().remove(stationaryName);
+//    createSol(studyStepName, varName, stationaryName);
+//  }
+
+  private void createSol(String solName) {
+    String studyStepName = "st1";
+    String varName = "v1";
+    String stationaryName = "s1";
+
+    model.sol().create(solName);
+    
+    model.sol(solName).study("std1");
+    model.sol(solName).create(studyStepName, "StudyStep");
+    model.sol(solName).create(varName, "Variables");
+    model.sol(solName).create(stationaryName, "Stationary");
+
+
+    model.sol(solName).feature(studyStepName).set("study", "std1");
+    model.sol(solName).feature(studyStepName).set("studystep", "stat");
+    model.sol(solName).feature(varName).set("control", "stat");
+
+    model.sol(solName).feature(stationaryName).create("fc1", "FullyCoupled");
+    model.sol(solName).feature(stationaryName).create("d1", "Direct");
+    model.sol(solName).feature(stationaryName).create("i1", "Iterative");
+    model.sol(solName).feature(stationaryName).feature("i1").create("mg1", "Multigrid");
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("pr").create("sc1", "SCGS");
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("po").create("sc1", "SCGS");
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("cs").create("d1", "Direct");
+    model.sol(solName).feature(stationaryName).feature().remove("fcDef");
 
     model.result().create("pg1", "PlotGroup2D");
     model.result().create("pg2", "PlotGroup2D");
@@ -308,44 +382,155 @@ public class TSimpleMixer {
     model.result("pg3").create("con1", "Contour");
     model.result("pg3").feature("con1").set("expr", "p");
     model.result("pg4").create("lngr1", "LineGraph");
-    model.result("pg4").feature("lngr1").selection().set(16);
+    model.result("pg4").feature("lngr1").selection().set(getEdgeNum(getRectEdge("r1","right")));
     model.result().export().create("plot1", "Plot");
 
-    model.sol("sol1").attach("std1");
-    model.sol("sol1").feature("s1").feature("aDef").set("cachepattern", true);
-    model.sol("sol1").feature("s1").feature("fc1").set("linsolver", "d1");
-    model.sol("sol1").feature("s1").feature("fc1").set("initstep", 0.01);
-    model.sol("sol1").feature("s1").feature("fc1").set("minstep", 1.0E-6);
-    model.sol("sol1").feature("s1").feature("fc1").set("maxiter", 100);
-    model.sol("sol1").feature("s1").feature("d1").label("Direct, fluid flow variables (spf) (merged)");
-    model.sol("sol1").feature("s1").feature("d1").set("linsolver", "pardiso");
-    model.sol("sol1").feature("s1").feature("d1").set("pivotperturb", 1.0E-13);
-    model.sol("sol1").feature("s1").feature("i1").label("AMG, fluid flow variables (spf)");
-    model.sol("sol1").feature("s1").feature("i1").set("nlinnormuse", true);
-    model.sol("sol1").feature("s1").feature("i1").set("maxlinit", 200);
-    model.sol("sol1").feature("s1").feature("i1").set("rhob", 20);
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").set("prefun", "saamg");
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").set("maxcoarsedof", 80000);
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").set("strconn", 0.02);
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").set("saamgcompwise", true);
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").set("usesmooth", false);
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").feature("pr").feature("sc1")
-         .set("linesweeptype", "ssor");
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").feature("pr").feature("sc1").set("iter", 0);
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").feature("pr").feature("sc1")
-         .set("scgsvertexrelax", 0.7);
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").feature("po").feature("sc1")
-         .set("linesweeptype", "ssor");
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").feature("po").feature("sc1").set("iter", 1);
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").feature("po").feature("sc1")
-         .set("scgsvertexrelax", 0.7);
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").feature("cs").feature("d1")
-         .set("linsolver", "pardiso");
-    model.sol("sol1").feature("s1").feature("i1").feature("mg1").feature("cs").feature("d1")
-         .set("pivotperturb", 1.0E-13);
+//    model.sol("sol1").attach("std1");
 
-    return model;
+    model.sol(solName).feature(stationaryName).feature("aDef").set("cachepattern", true);
+    model.sol(solName).feature(stationaryName).feature("fc1").set("linsolver", "d1");
+    model.sol(solName).feature(stationaryName).feature("fc1").set("initstep", 0.01);
+    model.sol(solName).feature(stationaryName).feature("fc1").set("minstep", 1.0E-6);
+    model.sol(solName).feature(stationaryName).feature("fc1").set("maxiter", 100);
+    model.sol(solName).feature(stationaryName).feature("d1").label("Direct, fluid flow variables (spf) (merged)");
+    model.sol(solName).feature(stationaryName).feature("d1").set("linsolver", "pardiso");
+    model.sol(solName).feature(stationaryName).feature("d1").set("pivotperturb", 1.0E-13);
+    model.sol(solName).feature(stationaryName).feature("i1").label("AMG, fluid flow variables (spf)");
+    model.sol(solName).feature(stationaryName).feature("i1").set("nlinnormuse", true);
+    model.sol(solName).feature(stationaryName).feature("i1").set("maxlinit", 200);
+    model.sol(solName).feature(stationaryName).feature("i1").set("rhob", 20);
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").set("prefun", "saamg");
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").set("maxcoarsedof", 80000);
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").set("strconn", 0.02);
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").set("saamgcompwise", true);
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").set("usesmooth", false);
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("pr").feature("sc1")
+            .set("linesweeptype", "ssor");
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("pr").feature("sc1").set("iter", 0);
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("pr").feature("sc1")
+            .set("scgsvertexrelax", 0.7);
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("po").feature("sc1")
+            .set("linesweeptype", "ssor");
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("po").feature("sc1").set("iter", 1);
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("po").feature("sc1")
+            .set("scgsvertexrelax", 0.7);
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("cs").feature("d1")
+            .set("linsolver", "pardiso");
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("cs").feature("d1")
+            .set("pivotperturb", 1.0E-13);
   }
+
+  public int getEdgeNum(double[] verticesCoords) {
+    int vert1Index = getVertexNum(verticesCoords[0], verticesCoords[1]);
+    int vert2Index = getVertexNum(verticesCoords[2], verticesCoords[3]);
+//        System.out.println("This is vert1Index: " + vert1Index);
+//        System.out.println("This is vert2Index: " + vert2Index);
+    if (vert1Index == -1 || vert2Index == -1)
+      return -1;
+
+    double[][] edges = getEdges();
+    for(int i = 0; i < edges[0].length; i++) {
+      double vert1 = edges[0][i];
+      double vert2 = edges[1][i];
+      if ((vert1Index == vert1 && vert2Index == vert2) || (vert2Index == vert1 && vert1Index == vert2))
+        return i+1;
+    }
+    return -2;
+  }
+
+  public int getVertexNum(double x, double y) {
+    double[][] vertices = getVertices();
+//        System.out.println("Num Cols: " + vertices[0].length);
+//        System.out.println(x + " " + y);
+    for(int i = 0; i < vertices[0].length; i++) {
+      double xCoord = vertices[0][i];
+      double yCoord = vertices[1][i];
+      if ((x == xCoord && y == yCoord) || (y == xCoord && x == yCoord)) {
+        return i+1;
+      }
+    }
+    return -1;
+  }
+
+  public double[] getRectEdge(String rectName, String side) {
+    Rectangle rect = getRect(rectName);
+    double vert1X;
+    double vert1Y;
+    double vert2X;
+    double vert2Y;
+    boolean isLeft = side.equals("left");
+    boolean isRight = side.equals("right");
+
+    if (isLeft || side.equals("bottom")) {
+      vert1X = rect.verticesCoords[0][0];
+      vert1Y = rect.verticesCoords[0][1];
+      if(isLeft) {
+        vert2X = rect.verticesCoords[1][0];
+        vert2Y = rect.verticesCoords[1][1];
+      }
+      else {
+        vert2X = rect.verticesCoords[3][0];
+        vert2Y = rect.verticesCoords[3][1];
+      }
+    }
+    else if (isRight || side.equals("top")){
+      vert1X = rect.verticesCoords[2][0];
+      vert1Y = rect.verticesCoords[2][1];
+      if(side.equals("right")) {
+        vert2X = rect.verticesCoords[3][0];
+        vert2Y = rect.verticesCoords[3][1];
+      }
+      else {
+        vert2X = rect.verticesCoords[1][0];
+        vert2Y = rect.verticesCoords[1][1];
+      }
+    }
+    else {
+      return null;
+    }
+//        System.out.println(vert1X + " " + vert1Y);
+//        System.out.println(vert2X + " " + vert2Y);
+    double[] verticesCoords = {vert1X, vert1Y, vert2X, vert2Y};
+    return verticesCoords;
+  }
+
+  public Rectangle getRect(String name) {
+    for (int i = 0; i < rectangles.size(); i++) {
+      Rectangle rect = rectangles.get(i);
+      if (rect.name.equals(name))
+        return rect;
+    }
+    return null;
+  }
+
+  public double[][] getEdges() {
+    double[][] edgeData = model.component(compName).geom(geomName).getEdge();
+
+//        System.out.println("Edge Data. First 2 rows are vertices");
+//        for (double[] data : edgeData) {
+//            for (double d: data) {
+//                System.out.print(d + " ");
+//            }
+//            System.out.println();
+//        }
+    return edgeData;
+  }
+
+  public double[][] getVertices() {
+    double[][] vertexData = model.component(compName).geom(geomName).getVertex();
+
+//        System.out.println("Vertex Data. First 2 rows are coordinates");
+//        for (double[] data : vertexData) {
+//            for (double d: data) {
+//                System.out.print(d + " ");
+//            }
+//            System.out.println("");
+//        }
+//        System.out.println();
+    return vertexData;
+  }
+
+
 
   private void initiateWaterMat() {
     model.component("comp1").material().create("mat1", "Common");
@@ -445,4 +630,29 @@ public class TSimpleMixer {
     model.component("comp1").material("mat1").propertyGroup("def").addInput("temperature");
   }
 
+  class Rectangle {
+    String name;
+    double posX;
+    double posY;
+    double width;
+    double height;
+    double[][] verticesCoords;
+
+    public Rectangle(String name, double posX, double posY, double width, double height) {
+      verticesCoords = new double[4][2];
+      this.name = name;
+      this.posX = posX;
+      this.posY = posY;
+      this.width = width;
+      this.height = height;
+      verticesCoords[0][0] = posX;
+      verticesCoords[0][1] = posY;
+      verticesCoords[1][0] = posX;
+      verticesCoords[1][1] = posY + height;
+      verticesCoords[2][0] = posX + width;
+      verticesCoords[2][1] = posY + height;
+      verticesCoords[3][0] = posX + width;
+      verticesCoords[3][1] = posY;
+    }
+  }
 }
