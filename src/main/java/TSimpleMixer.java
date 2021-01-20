@@ -1,15 +1,12 @@
-/*
- * TSimpleMixer.java
- */
-
 import com.comsol.model.*;
 import com.comsol.model.util.*;
 import org.apache.commons.math3.util.Precision;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 
 /** Model exported on Dec 22 2020, 11:03 by COMSOL 5.5.0.359. */
@@ -27,15 +24,19 @@ public class TSimpleMixer {
   private double goal = 0.5;
   private String compName = "comp1";
   private String geomName = "geom1";
+  private int fileIter = 0;
+  private double inletMPerSec = 0;
 
   public static void main(String[] args) throws IOException {
     TSimpleMixer demo = new TSimpleMixer();
+
     demo.init();
     demo.start();
     System.out.println("COMSOL program completed.");
     demo.updateForNewDesign();
 
     ModelUtil.disconnect();
+//    return;
   }
 
   public void init() {
@@ -43,6 +44,7 @@ public class TSimpleMixer {
     circleNames = new ArrayList<String>();
     rectangles = new ArrayList<Rectangle>();
     rectNames = new ArrayList<String>();
+//    watch = new StopWatch();
     currentCircleSet = null;
   }
 
@@ -55,37 +57,60 @@ public class TSimpleMixer {
 
   public void start() throws IOException {
     try {
+      inletMPerSec = 0.001;
+      Instant start = Instant.now();
+//      watch.start();
       model = run();
+      Instant stop = Instant.now();
+//      watch.stop();
+//      System.out.println("Initial setup: " + watch.getTime());
+      System.out.println("Initial setup: " + Duration.between(start, stop).toMillis());
     } catch (Exception e) {
       e.printStackTrace();
     }
 
 //    updateChip();
+//    Instant start = Instant.now();
     runResultSetup("sol1");
+//    Instant stop = Instant.now();
+//    System.out.println("Initial run results setup and computation: " + Duration.between(start, stop).toMillis());
 
     double[][] firstHalf = readFirstHalfConcs(exitConcFilename);
-    System.out.println("Original");
-    for (double[] row : firstHalf)
-      System.out.println(row[0] + " " + row[1]);
-
-    double avg = getAverageConc(firstHalf);
-    bestAvgDiff = Math.abs(avg - goal);
-    bestCircleSet = null;
-    System.out.println("\nAverage Conc: " + avg + "\n");
-
-//    updateChip("sol2");
-//    runResultSetup("sol2");
-//
-//
-//    firstHalf = readFirstHalfConcs(exitConcFilename);
 //    System.out.println("Original");
 //    for (double[] row : firstHalf)
 //      System.out.println(row[0] + " " + row[1]);
-//
-//    avg = getAverageConc(firstHalf);
+
+//    double avg = getAverageConc(firstHalf);
 //    bestAvgDiff = Math.abs(avg - goal);
 //    bestCircleSet = null;
-//    System.out.println("\nAverage Conc: " + avg + "\n");
+//    System.out.println("Average Conc: " + avg + "\n");
+
+    for (int i = 1; i <= 10; i++) {
+      System.out.println("\nUpdate Chip " + i);
+      Instant start2 = Instant.now();
+      updateChip("sol1");
+      Instant stop2 = Instant.now();
+      System.out.println("Updating chip's geometries: " + Duration.between(start2, stop2).toMillis());
+//      System.out.println("finish update");
+//      Instant start3 = Instant.now();
+      runResultSetup("sol1");
+//      Instant stop3 = Instant.now();
+//      System.out.println("Loop " + i + " run results setup and computation: " +
+//              Duration.between(start2, stop2).toMillis());
+
+//
+//      firstHalf = readFirstHalfConcs(exitConcFilename);
+//      System.out.println("Iteration " + fileIter);
+//    for (double[] row : firstHalf)
+//      System.out.println(row[0] + " " + row[1]);
+
+//      avg = getAverageConc(firstHalf);
+//      bestAvgDiff = Math.abs(avg - goal);
+//      bestCircleSet = null;
+//      System.out.println("Average Conc: " + avg + "\n");
+    }
+
+
 
 ////    double[][] firstHalf = readFirstHalfConcs(exitConcFilename);
 //    int i = 0;
@@ -113,63 +138,90 @@ public class TSimpleMixer {
 
   private void runResultSetup(String solName) {
     model.sol(solName).attach("std1");
+    int j = 0;
+//    System.out.println("Got to here" + j);
+    Instant start = Instant.now();
     model.sol(solName).runAll();
+    Instant stop = Instant.now();
+    System.out.println("model.sol(\"sol1\").runAll() method: " + Duration.between(start, stop).toMillis());
 
-    model.result("pg1").label("Concentration (tds)");
-    model.result("pg1").set("titletype", "custom");
-    model.result("pg1").feature("surf1").set("descr", "Concentration");
-    model.result("pg1").feature("surf1").set("rangecoloractive", true);
-    model.result("pg1").feature("surf1").set("rangecolormax", 1);
-    model.result("pg1").feature("surf1").set("resolution", "normal");
-    model.result("pg1").feature("con1").set("levelmethod", "levels");
-    model.result("pg1").feature("con1").set("levels", 0.5);
-    model.result("pg1").feature("con1").set("coloring", "uniform");
-    model.result("pg1").feature("con1").set("color", "black");
-    model.result("pg1").feature("con1").set("resolution", "normal");
+//    System.out.println("Got to this" + j++);
 
-    model.result("pg2").label("Velocity (spf)");
-    model.result("pg2").set("frametype", "spatial");
-    model.result("pg2").feature("surf1").label("Surface");
-    model.result("pg2").feature("surf1").set("smooth", "internal");
-    model.result("pg2").feature("surf1").set("resolution", "normal");
-
-    model.result("pg3").label("Pressure (spf)");
-    model.result("pg3").set("frametype", "spatial");
-    model.result("pg3").feature("con1").label("Contour");
-    model.result("pg3").feature("con1").set("number", 40);
-    model.result("pg3").feature("con1").set("levelrounding", false);
-    model.result("pg3").feature("con1").set("smooth", "internal");
-    model.result("pg3").feature("con1").set("resolution", "normal");
-
-    model.result("pg4").set("xlabel", "Arc length (mm)");
-    model.result("pg4").set("xlabelactive", false);
-    model.result("pg4").feature("lngr1").set("resolution", "normal");
+//    model.result("pg1").label("Concentration (tds)");
+//    model.result("pg1").set("titletype", "custom");
+//    model.result("pg1").feature("surf1").set("descr", "Concentration");
+//    model.result("pg1").feature("surf1").set("rangecoloractive", true);
+//    model.result("pg1").feature("surf1").set("rangecolormax", 1);
+//    model.result("pg1").feature("surf1").set("resolution", "normal");
+//    model.result("pg1").feature("con1").set("levelmethod", "levels");
+//    model.result("pg1").feature("con1").set("levels", 0.5);
+//    model.result("pg1").feature("con1").set("coloring", "uniform");
+//    model.result("pg1").feature("con1").set("color", "black");
+//    model.result("pg1").feature("con1").set("resolution", "normal");
+//
+//    model.result("pg2").label("Velocity (spf)");
+//    model.result("pg2").set("frametype", "spatial");
+//    model.result("pg2").feature("surf1").label("Surface");
+//    model.result("pg2").feature("surf1").set("smooth", "internal");
+//    model.result("pg2").feature("surf1").set("resolution", "normal");
+//
+//    model.result("pg3").label("Pressure (spf)");
+//    model.result("pg3").set("frametype", "spatial");
+//    model.result("pg3").feature("con1").label("Contour");
+//    model.result("pg3").feature("con1").set("number", 40);
+//    model.result("pg3").feature("con1").set("levelrounding", false);
+//    model.result("pg3").feature("con1").set("smooth", "internal");
+//    model.result("pg3").feature("con1").set("resolution", "normal");
+//
+//    model.result("pg4").set("xlabel", "Arc length (mm)");
+//    model.result("pg4").set("xlabelactive", false);
+//    model.result("pg4").feature("lngr1").set("resolution", "normal");
 
     //not auto-populated by COMSOL - needed for export to run
 //    model.result("pg1").run();
 //    model.result("pg4").run();
 
+    Instant start2 = Instant.now();
     //creates the .txt file of the line graph's conc values at the exit
-    int i = 0;
+    exitConcFilename = exportDir  + fileIter + "_exitconc"+ ".txt";
     model.result().export("plot1").set("plotgroup", "pg4");
     model.result().export("plot1").set("plot", "lngr1");
-    exitConcFilename = exportDir + "exitconc_" + i + ".txt";
     model.result().export("plot1").set("filename", exitConcFilename);
     model.result().export("plot1").set("header", false);
     model.result().export("plot1").run();
 
     //creates an image file of the concentration gradient
-    model.result().export().create("img1","pg1","Image");
     model.result().export("img1").set("imagetype", "png");
-    model.result().export("img1").set("pngfilename", exportDir + "concimg_" + i + ".png");
+    model.result().export("img1").set("axes2d", "on");
+    model.result().export("img1").set("legend2d", "on");
+    model.result().export("img1").set("pngfilename", exportDir + fileIter + "_concimg" +".png");
     model.result().export("img1").run(); //not auto-populated by COMSOL - needed for export to run
+
+//    creates an image file of the velocity
+    model.result().export("img3").set("imagetype", "png");
+    model.result().export("img3").set("axes2d", "on");
+    model.result().export("img3").set("legend2d", "on");
+    model.result().export("img3").set("pngfilename", exportDir + fileIter + "_velocityimg" + ".png");
+    model.result().export("img3").run(); //not auto-populated by COMSOL - needed for export to run
 
 
     //creates an image file of the concentration gradient at the exit point
-    model.result().export().create("img2","pg4","Image");
     model.result().export("img2").set("imagetype", "png");
-    model.result().export("img2").set("pngfilename", exportDir + "concgraph" + i++ + ".png");
+    model.result().export("img2").set("pngfilename", exportDir + fileIter + "_concgraph" + ".png");
     model.result().export("img2").run(); //not auto-populated by COMSOL - needed for export to run
+
+
+    model.save(exportDir  + "Mixer" + fileIter, "java");
+
+    try {
+      model.save(exportDir + fileIter + "_mixer");
+    } catch (IOException e) {
+      System.out.println("Failed to create mph file.");
+    }
+    fileIter++;
+    Instant stop2 = Instant.now();
+    System.out.println("Creating exports: " + Duration.between(start2, stop2).toMillis());
+
   }
 
   private double getAverageConc(double[][] data) {
@@ -206,32 +258,47 @@ public class TSimpleMixer {
   }
 
   private void updateChip(String solName) {
-//    removeCircles();
-    addRandSizedCircles(10, 0.01,0.05, -5, 1.2, 0, 1);
+//    System.out.println("In removeCircle");
+    removeCircles();
+//    System.out.println("removed Circles");
+//    for (String name : circleNames)
+//      System.out.println(name);
+    addRandSizedCircles(20, 0.05,0.1, -5, 1.2, 0, 1);
+//    System.out.println("added circles");
     String[] circlesArr = new String[circleNames.size()];
     circlesArr = circleNames.toArray(circlesArr);
-//    String[] rectArr = new String[rectNames.size()];
-//    rectArr = rectNames.toArray(rectArr);
+//    System.out.println("Size: " + circlesArr.length);
+    String[] rectArr = new String[rectNames.size()];
+    rectArr = rectNames.toArray(rectArr);
 
-
-    model.component("comp1").geom("geom1").create("dif1", "Difference");
-    model.component("comp1").geom("geom1").feature("dif1").selection("input").set("r1", "r2");
+    try {
+      model.component("comp1").geom("geom1").create("dif1", "Difference");
+    }
+    catch(Exception e) {
+      model.component("comp1").geom("geom1").feature().remove("dif1");
+      model.component("comp1").geom("geom1").create("dif1", "Difference");
+    }
+    model.component("comp1").geom("geom1").feature("dif1").selection("input").set(rectArr);
     model.component("comp1").geom("geom1").feature("dif1").selection("input2")
-            .set("c1", "c2", "c3", "c4", "c5", "c6");
+            .set(circlesArr);
 
-    model.component("comp1").geom("geom1").create("dif1", "Difference");
-//    model.component("comp1").geom("geom1").feature("dif1").selection("input").set(rectArr);
-    model.component("comp1").geom("geom1").feature("dif1").selection("input2").set(circlesArr);
     model.component("comp1").geom("geom1").run();
     model.component("comp1").geom("geom1").runPre("fin");
-    createSol(solName);
+
+//    System.out.println("Added circles");
+    recreateSol("st1", "v1", "s1");
   }
 
   private void removeCircles() {
-    for (String name : circleNames) {
-      model.component("comp1").geom("geom1").feature().remove(name);
+//    for (String name : circleNames)
+//      System.out.println(name);
+    if (circleNames.size() > 0) {
+      for (String name : circleNames) {
+        model.component("comp1").geom("geom1").feature().remove(name);
+      }
+      circleNames = new ArrayList<String>();
     }
-    circleNames = new ArrayList<String>();
+//    System.out.println("Finished removeCircles");
   }
 
   public void addRandSizedCircles(int numCircles, double minRadius, double maxRadius, double minX, double maxX,
@@ -325,51 +392,16 @@ public class TSimpleMixer {
 
     model.component("comp1").physics("tds").feature("cdm1").set("u_src", "root.comp1.u");
     model.component("comp1").physics("tds").feature("in1").set("c0", 1);
-    model.component("comp1").physics("spf").feature("inl1").set("U0in", 0.001);
+    model.component("comp1").physics("spf").feature("inl1").set("U0in", inletMPerSec);
 
     model.study().create("std1");
     model.study("std1").create("stat", "Stationary");
 
-//    model.sol().create("sol1");
+    model.sol().create("sol1");
 //    model.sol("sol1").study("std1");
 
-    createSol("sol1");
-
-    return model;
-  }
-
-//  private void recreateSol(String studyStepName, String varName, String stationaryName) {
-//    model.sol("sol1").feature().remove(studyStepName);
-//    model.sol("sol1").feature().remove(varName);
-//    model.sol("sol1").feature().remove(stationaryName);
-//    createSol(studyStepName, varName, stationaryName);
-//  }
-
-  private void createSol(String solName) {
-    String studyStepName = "st1";
-    String varName = "v1";
-    String stationaryName = "s1";
-
-    model.sol().create(solName);
-    
-    model.sol(solName).study("std1");
-    model.sol(solName).create(studyStepName, "StudyStep");
-    model.sol(solName).create(varName, "Variables");
-    model.sol(solName).create(stationaryName, "Stationary");
-
-
-    model.sol(solName).feature(studyStepName).set("study", "std1");
-    model.sol(solName).feature(studyStepName).set("studystep", "stat");
-    model.sol(solName).feature(varName).set("control", "stat");
-
-    model.sol(solName).feature(stationaryName).create("fc1", "FullyCoupled");
-    model.sol(solName).feature(stationaryName).create("d1", "Direct");
-    model.sol(solName).feature(stationaryName).create("i1", "Iterative");
-    model.sol(solName).feature(stationaryName).feature("i1").create("mg1", "Multigrid");
-    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("pr").create("sc1", "SCGS");
-    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("po").create("sc1", "SCGS");
-    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("cs").create("d1", "Direct");
-    model.sol(solName).feature(stationaryName).feature().remove("fcDef");
+//    createSol("sol1");
+    createSol("st1", "v1", "s1");
 
     model.result().create("pg1", "PlotGroup2D");
     model.result().create("pg2", "PlotGroup2D");
@@ -383,7 +415,100 @@ public class TSimpleMixer {
     model.result("pg3").feature("con1").set("expr", "p");
     model.result("pg4").create("lngr1", "LineGraph");
     model.result("pg4").feature("lngr1").selection().set(getEdgeNum(getRectEdge("r1","right")));
+
+    model.result("pg1").label("Concentration (tds)");
+    model.result("pg1").set("titletype", "custom");
+    model.result("pg1").feature("surf1").set("descr", "Concentration");
+    model.result("pg1").feature("surf1").set("rangecoloractive", true);
+    model.result("pg1").feature("surf1").set("rangecolormax", 1);
+    model.result("pg1").feature("surf1").set("resolution", "normal");
+    model.result("pg1").feature("con1").set("levelmethod", "levels");
+    model.result("pg1").feature("con1").set("levels", 0.5);
+    model.result("pg1").feature("con1").set("coloring", "uniform");
+    model.result("pg1").feature("con1").set("color", "black");
+    model.result("pg1").feature("con1").set("resolution", "normal");
+
+    model.result("pg2").label("Velocity (spf)");
+    model.result("pg2").set("frametype", "spatial");
+    model.result("pg2").feature("surf1").label("Surface");
+    model.result("pg2").feature("surf1").set("smooth", "internal");
+    model.result("pg2").feature("surf1").set("resolution", "normal");
+
+    model.result("pg3").label("Pressure (spf)");
+    model.result("pg3").set("frametype", "spatial");
+    model.result("pg3").feature("con1").label("Contour");
+    model.result("pg3").feature("con1").set("number", 40);
+    model.result("pg3").feature("con1").set("levelrounding", false);
+    model.result("pg3").feature("con1").set("smooth", "internal");
+    model.result("pg3").feature("con1").set("resolution", "normal");
+
+    model.result("pg4").set("xlabel", "Arc length (mm)");
+    model.result("pg4").set("xlabelactive", false);
+    model.result("pg4").feature("lngr1").set("resolution", "normal");
+
     model.result().export().create("plot1", "Plot");
+
+    model.result().export().create("img1","pg1","Image");
+    model.result().export().create("img2","pg4","Image");
+    model.result().export().create("img3","pg2","Image");
+    return model;
+  }
+
+  private void recreateSol(String studyStepName, String varName, String stationaryName) {
+    model.study("std1").feature("stat").set("notlistsolnum", 1);
+    model.study("std1").feature("stat").set("notsolnum", "1");
+    model.study("std1").feature("stat").set("listsolnum", 1);
+    model.study("std1").feature("stat").set("solnum", "1");
+    model.sol("sol1").feature().remove(studyStepName);
+    model.sol("sol1").feature().remove(varName);
+    model.sol("sol1").feature().remove(stationaryName);
+    createSol(studyStepName, varName, stationaryName);
+  }
+
+  private void createSol(String studyStepName, String varName, String stationaryName) {
+    String solName = "sol1";
+//    String studyStepName = "st1";
+//    String varName = "v1";
+//    String stationaryName = "s1";
+
+//    model.sol().create(solName);
+    
+    model.sol(solName).study("std1");
+    model.sol(solName).create(studyStepName, "StudyStep");
+    model.sol(solName).create(varName, "Variables");
+    model.sol(solName).create(stationaryName, "Stationary");
+
+    model.sol(solName).feature(studyStepName).set("study", "std1");
+    model.sol(solName).feature(studyStepName).set("studystep", "stat");
+    model.sol(solName).feature(varName).set("control", "stat");
+
+//    model.sol("sol1").feature("s1").set("stol", 0.001);
+    model.sol("sol1").feature("s1").create("seDef", "Segregated");
+    model.sol(solName).feature(stationaryName).create("fc1", "FullyCoupled");
+    model.sol(solName).feature(stationaryName).create("d1", "Direct");
+    model.sol(solName).feature(stationaryName).create("i1", "Iterative");
+    model.sol(solName).feature(stationaryName).feature("i1").create("mg1", "Multigrid");
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("pr").create("sc1", "SCGS");
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("po").create("sc1", "SCGS");
+    model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("cs").create("d1", "Direct");
+    model.sol(solName).feature(stationaryName).feature().remove("fcDef");
+    model.sol("sol1").feature("s1").feature().remove("seDef");
+
+//
+
+//    model.result().create("pg1", "PlotGroup2D");
+//    model.result().create("pg2", "PlotGroup2D");
+//    model.result().create("pg3", "PlotGroup2D");
+//    model.result().create("pg4", "PlotGroup1D");
+//    model.result("pg1").create("surf1", "Surface");
+//    model.result("pg1").create("con1", "Contour");
+//    model.result("pg2").create("surf1", "Surface");
+//    model.result("pg2").feature("surf1").set("expr", "spf.U");
+//    model.result("pg3").create("con1", "Contour");
+//    model.result("pg3").feature("con1").set("expr", "p");
+//    model.result("pg4").create("lngr1", "LineGraph");
+//    model.result("pg4").feature("lngr1").selection().set(getEdgeNum(getRectEdge("r1","right")));
+//    model.result().export().create("plot1", "Plot");
 
 //    model.sol("sol1").attach("std1");
 
@@ -391,6 +516,7 @@ public class TSimpleMixer {
     model.sol(solName).feature(stationaryName).feature("fc1").set("linsolver", "d1");
     model.sol(solName).feature(stationaryName).feature("fc1").set("initstep", 0.01);
     model.sol(solName).feature(stationaryName).feature("fc1").set("minstep", 1.0E-6);
+    model.sol("sol1").feature("s1").feature("fc1").set("dtech", "auto");
     model.sol(solName).feature(stationaryName).feature("fc1").set("maxiter", 100);
     model.sol(solName).feature(stationaryName).feature("d1").label("Direct, fluid flow variables (spf) (merged)");
     model.sol(solName).feature(stationaryName).feature("d1").set("linsolver", "pardiso");
