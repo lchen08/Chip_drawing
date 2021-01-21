@@ -75,7 +75,7 @@ public class TSimpleMixer {
 //    Instant stop = Instant.now();
 //    System.out.println("Initial run results setup and computation: " + Duration.between(start, stop).toMillis());
 
-    double[][] firstHalf = readFirstHalfConcs(exitConcFilename);
+//    double[][] firstHalf = readFirstHalfConcs(exitConcFilename);
 //    System.out.println("Original");
 //    for (double[] row : firstHalf)
 //      System.out.println(row[0] + " " + row[1]);
@@ -85,13 +85,16 @@ public class TSimpleMixer {
 //    bestCircleSet = null;
 //    System.out.println("Average Conc: " + avg + "\n");
 
-    for (int i = 1; i <= 10; i++) {
+    updateChip("sol1");
+    for (int i = 1; i <= 9; i++) { //TODO change <= back to 10
       System.out.println("\nUpdate Chip " + i);
-      Instant start2 = Instant.now();
-      updateChip("sol1");
-      Instant stop2 = Instant.now();
-      System.out.println("Updating chip's geometries: " + Duration.between(start2, stop2).toMillis());
-//      System.out.println("finish update");
+//      Instant start2 = Instant.now();
+//      updateChip("sol1");
+//      Instant stop2 = Instant.now();
+//      System.out.println("Updating chip's geometries: " + Duration.between(start2, stop2).toMillis());
+
+      setMeshSize(i);
+
 //      Instant start3 = Instant.now();
       runResultSetup("sol1");
 //      Instant stop3 = Instant.now();
@@ -255,6 +258,35 @@ public class TSimpleMixer {
       }
       return result;
     }
+  }
+
+  private void setMeshSize(String size) {
+    switch (size) {
+      case "Extremely fine":
+        setMeshSize(1);break;
+      case "Extra fine":
+        setMeshSize(2); break;
+      case "Finer":
+        setMeshSize(3); break;
+      case "Fine":
+        setMeshSize(4); break;
+      case "Normal":
+        setMeshSize(5); break;
+      case "Coarse":
+        setMeshSize(6); break;
+      case "Coarser":
+        setMeshSize(7); break;
+      case "Extra coarse":
+        setMeshSize(8); break;
+      case "Extremely coarse":
+        setMeshSize(9); break;
+      default:
+        System.out.println("Incorrect text input for mesh size (must match COMSOL). Set mesh to Normal.");
+        setMeshSize(5);
+    }
+  }
+  private void setMeshSize(int size) {
+    model.component("comp1").mesh("mesh1").autoMeshSize(size);
   }
 
   private void updateChip(String solName) {
