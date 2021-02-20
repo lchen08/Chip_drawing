@@ -13,20 +13,21 @@ public class MixerTest {
     private static int totalVars = NUM_CIRCLES * NUM_CIRCLE_VARS;;
     static TSimpleMixer mixer = new TSimpleMixer();
     static double problemRuntime = 0;
-    static private final double FLOW_RATE = 0.03;
+//    static private final double FLOW_RATE = 0.03;
 
     public static void main(String[] args) {
         Instant begin = Instant.now();
 //        final long startTime = System.currentTimeMillis();
         mixer.init();
-        mixer.doBaseSetup(FLOW_RATE);
+//        mixer.doBaseSetup(FLOW_RATE);
+        mixer.doBaseSetup();
         double rate = 1 / totalVars;
 
         //runs NGSAII algorithm with given parameters
         NondominatedPopulation result = new Executor()
                 .withAlgorithm("NSGAII")
                 .withProblemClass(MixerProblem.class)
-                .withMaxEvaluations(15000)
+                .withMaxEvaluations(12000)
 //                .withProperty("sbx.rate", rate) //simulated binary crossover
 //                .withProperty("sbx.distributionIndex", 15.0)
 //                .withProperty("pm.rate", rate) //polynomial mutation
@@ -61,12 +62,14 @@ public class MixerTest {
 //                        System.out.println("Circle " + circIndex + "(" + posX + ", " + posY + " radius: " + radius);
                         double[] circleRow = {posX, posY, radius};
                         circlesInfo[circIndex++] = circleRow;
-
                     }
+
+                    double flowRate = Double.parseDouble(solution.getVariable(MixerProblem.getFlowRateVarIndex()).
+                            toString());
 
                     System.out.println("All Pass?: " + Test2.check(circlesInfo));
 
-                    mixer.start(circlesInfo);
+                    mixer.start(circlesInfo, flowRate);
                     System.out.println("FIle created: " + mixer.getLastFilename());
 
                 }
