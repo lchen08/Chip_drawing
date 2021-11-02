@@ -1,0 +1,24 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="MixerTest" type="Application" factoryName="Application" nameIsGenerated="true">
+    <envs>
+      <env name="PATH" value="C:\Program Files\COMSOL\COMSOL55\Multiphysics\lib\win64" />
+      <env name="LMCOMSOL_LICENSE_FILE" value="C:\Program Files\COMSOL\COMSOL55\Multiphysics\license\license.dat" />
+      <env name="MAGICK_CONFIGURE_PATH" value="C:\Program Files\COMSOL\COMSOL55\Multiphysics\ext\graphicsmagick\win64" />
+      <env name="MAGICK_CODER_MODULE_PATH" value="C:\Program Files\COMSOL\COMSOL55\Multiphysics\ext\graphicsmagick\win64" />
+      <env name="MAGICK_FILTER_MODULE_PATH" value="C:\Program Files\COMSOL\COMSOL55\Multiphysics\ext\graphicsmagick\win64" />
+      <env name="LC_NUMERIC" value="C" />
+    </envs>
+    <option name="MAIN_CLASS_NAME" value="NSGA2.MixerTest" />
+    <module name="Chip_Drawing" />
+    <option name="VM_PARAMETERS" value="-Dcs.ckl=on" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="NSGA2.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
