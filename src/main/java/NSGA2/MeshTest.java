@@ -1,6 +1,5 @@
 package NSGA2;
 
-import NSGA2.CircularPostMeshProblem;
 import com.comsol.model.util.ModelUtil;
 import org.moeaframework.algorithm.NSGAII;
 import org.moeaframework.core.*;
@@ -35,7 +34,7 @@ public class MeshTest {
             selection,
             variation,
             initialization);
-    static TSimpleMixer mixer = new TSimpleMixer(problem.INFLOW_CONC_1,
+    static TSimpleChip mixer = new TSimpleChip(problem.INFLOW_CONC_1,
             problem.INFLOW_CONC_2,
             problem.MAIN_CHANNEL_DIM,
             problem.CROSS_CHANNEL_DIM);

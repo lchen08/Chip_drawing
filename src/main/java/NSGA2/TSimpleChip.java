@@ -10,19 +10,26 @@ import java.time.Instant;
 import java.util.ArrayList;
 
 /**
- * Model exported on Dec 22 2020, 11:03 by COMSOL 5.5.0.359.
+ * This is the class for just generating simple t channel with posts in the center. The class can generate posts of
+ * two types: circular and rectangular.
  */
-public class TSimpleMixer {
-    private static Model model;
-    //  private String exportDir = System.getProperty("user.dir") + "/exports/";
-    private String exportDir = "D:/COMSOL Research/63) pattern testing/";
+public class TSimpleChip {
+    public static Model model;
+//      private String exportDir = System.getProperty("user.dir") + "/exports/";
+    private String exportDir = "D:/COMSOL Research/70) repeat 67, E4k/";
     private double boundaryBuffer = 0.001;
     private ArrayList<String> circleNames;
+    private ArrayList<String> rectPostNames;
+    private ArrayList<String> trianglePostNames;
     private ArrayList<Rectangle> rectangles;
     private ArrayList<String> rectNames;
-    private ArrayList<String> rectPostNames;
+    private double[][] currentCircleSet;
+//    private double[][] currentRectSet;
+    private double[][] currentTriangleSet;
+
     private final double inflowConc1;
-    private final double inflowConc2;
+    private final double inflowConc2; //if there is a second inflow for mixing
+
     private String exitConcFilename = "";
     private String entryPressureFilename = "";
     private String concImgFilename = "";
@@ -33,47 +40,39 @@ public class TSimpleMixer {
     private String modelName = "";
     private String diffName = "dif1";
     private String fisrName = "fisr1";
-    private double[][] currentCircleSet;
-    private double[][] currentRectSet;
-    private double goal = 0.5;
     private String compName = "comp1";
     private String geomName = "geom1";
     private String solName = "sol1";
+
     private int fileIter = 0;
     private double inletMPerSec = 0;
     private boolean hadError = false;
-    final int DEFAULT_MESH_SIZE = 4;
+    static final int DEFAULT_MESH_SIZE = 4;
     private String filenamePrefix = "";
-    private final String[] COMSOL_MESH_NAMES = {"Extremely fine", "Extra fine", "Finer", "Fine", "Normal", "Coarse", "Coarser",
-            "Extra coarse", "Extremely coarse"};
+    private final String[] COMSOL_MESH_NAMES = {"Extremely fine", "Extra fine", "Finer", "Fine", "Normal", "Coarse",
+            "Coarser", "Extra coarse", "Extremely coarse"};
     private double totalTime = 0;
-    private final double[] MAIN_CHANNEL_DIM; //to add to addRect, x, y, width, height in mm
+    private final double[] MAIN_CHANNEL_DIM; //to add to addRect, x, y, width, height in mm //channel for the post
     private final double[] CROSS_CHANNEL_DIM; //to add to addRect, x, y, width, height in mm
     private final double WATER_VISCOSITY = 0.00089;
     private final double CROSS_SECTION_AREA_MM;
-    private double[][] pressureTable;
 
-
-//    public static void main(String[] args) throws IOException, InterruptedException {
-//        TSimpleMixer demo = new TSimpleMixer(1,0);
-//
-//        demo.init();
-////    demo.start();
-////    demo.rewriteFiles();
-//        System.out.println("COMSOL program completed.");
-//
-//        ModelUtil.disconnect();
-////    return;
-//    }
-
-
-    public TSimpleMixer(double inflowConc1, double inflowConc2, double[] mainChannelDim, double[] crossChannelDim) {
+    /**
+     * Constructor for the chip where it requires 2 inflow concentrations
+     * @param inflowConc1
+     * @param inflowConc2
+     * @param mainChannelDim
+     * @param crossChannelDim
+     */
+    public TSimpleChip(double inflowConc1, double inflowConc2, double[] mainChannelDim, double[] crossChannelDim) {
         MAIN_CHANNEL_DIM = mainChannelDim;
         CROSS_CHANNEL_DIM = crossChannelDim;
         CROSS_SECTION_AREA_MM = Math.pow(MAIN_CHANNEL_DIM[3] / 1000.0, 2);
         this.inflowConc1 = inflowConc1;
         this.inflowConc2 = inflowConc2;
     }
+
+    public ArrayList<String> getCircleNames() { return circleNames; }
 
     public void resetFileIter() {
         fileIter = 0;
@@ -101,27 +100,16 @@ public class TSimpleMixer {
 
 
     public void init() {
+//        ModelUtil.connect();
 //    ModelUtil.initStandalone(true);
         ModelUtil.initStandalone(false);
         circleNames = new ArrayList<String>();
         rectangles = new ArrayList<Rectangle>();
         rectNames = new ArrayList<String>();
         rectPostNames = new ArrayList<String>();
+        trianglePostNames = new ArrayList<String>();
         currentCircleSet = null;
     }
-
-//  public void rewriteFiles() throws IOException {
-//    String dir = "D:/COMSOL Research/15) Feb 14 run (0.02, 12000 evals, 0.45x)/";
-//    for (int i = 0; i <= 4000; i++) {
-//      File file = new File(dir + i + "_mixer.mph");
-//      if (!file.exists())
-//        return;
-//      model = ModelUtil.load("Model",dir + i + "_mixer.mph");
-//      model.resetHist();
-//      model.save(dir + i + "_mixer");
-////      model.save(dir + "(compacted)" + i + "_mixer");
-//    }
-//  }
 
     public void doFISRBaseSetup(double stoichiometricCoeff) {
 //    this.inletMPerSec = inletMPerSec;
@@ -156,10 +144,11 @@ public class TSimpleMixer {
     public void start(double[][] circleInfo, double inletMPerSec, boolean hasFISR) throws FileNotFoundException {
         start(circleInfo, inletMPerSec, hasFISR, DEFAULT_MESH_SIZE);
     }
-    //  public void start(double[][] circleInfo) {
+
     public void start(double[][] circleInfo, double inletMPerSec, boolean hasFISR, int meshSize) throws FileNotFoundException {
         hadError = false;
         currentCircleSet = new double[circleInfo.length][3];
+//        System.out.println("Length: " + circleInfo.length);
 
         removeCircles();
 
@@ -260,7 +249,7 @@ public class TSimpleMixer {
 
     public void startRect(double[][] rectInfo, double inletMPerSec, boolean hasFISR) throws FileNotFoundException {
         hadError = false;
-        currentRectSet = new double[rectInfo.length][5];
+//        currentRectSet = new double[rectInfo.length][5];
 
         removeRectPosts();
 
@@ -276,8 +265,8 @@ public class TSimpleMixer {
             double height = rectInfo[i][3];
             double rotation = rectInfo[i][4];
             addRectPosts("r" + i, posX, posY, width, height, rotation);
-            double[] rectData = {posX, posY, width, height, rotation};
-            currentRectSet[i] = rectData;
+//            double[] rectData = {posX, posY, width, height, rotation};
+//            currentRectSet[i] = rectData;
         }
 //        } catch (Exception e) {
 //            e.printStackTrace();
@@ -345,6 +334,249 @@ public class TSimpleMixer {
 //                System.out.println("Rect " + row + ": ");
                 for (int param = 0; param < rectInfo[row].length; param++) {
                     ps.print(rectInfo[row][param] + " ");
+                }
+                ps.println();
+            }
+
+            e.printStackTrace(ps);
+            ps.close();
+
+            try {
+                modelName = exportDir + filenamePrefix + fileIter + "_mixer(error)";
+                fileIter++;
+                model.save(modelName);
+            } catch (Exception f) {
+                System.out.println("Failed to create errored mph file in the Exception.");
+                f.printStackTrace();
+            }
+
+            System.out.println("got to end of exception");
+        }
+    }
+
+    public void startTriangle(double[][] triangleInfo, double inletMPerSec, boolean hasFISR) throws FileNotFoundException {
+        hadError = false;
+        currentTriangleSet = new double[triangleInfo.length][TrianglePostProblem.NUM_TRIANGLE_VARS];
+
+        removeTrianglePosts();
+
+        System.out.println("Got to removing triangles.");
+        Instant start = Instant.now();
+//        try {
+        for (int i = 0; i < triangleInfo.length; i++) {
+            double x1 = triangleInfo[i][0];
+            double y1 = triangleInfo[i][1];
+            double x2 = triangleInfo[i][2];
+            double y2 = triangleInfo[i][3];
+            double x3 = triangleInfo[i][4];
+            double y3 = triangleInfo[i][5];
+            System.out.println("Triangle " + i + " X1: " + x1 + " Y1: " + y1 + " X2: " + x2 + " Y2: " + y2 + " X3: "
+                    + x3 + " Y1: " + y3);
+
+            addTrianglePosts("tri" + i, x1, y1, x2, y2, x3, y3);
+            double[] triangleData = { x1, y1, x2, y2, x3, y3};
+            currentTriangleSet[i] = triangleData;
+        }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+        System.out.println("Got to adding triangle posts.");
+
+        String[] trianglePostArr = new String[trianglePostNames.size()];
+        trianglePostArr = trianglePostNames.toArray(trianglePostArr);
+        String[] rectArr = new String[rectNames.size()];
+        rectArr = rectNames.toArray(rectArr);
+
+        try {
+            model.component(compName).geom(geomName).create("dif1", "Difference");
+        } catch (Exception e) {
+            model.component(compName).geom(geomName).feature().remove(diffName);
+            model.component(compName).geom(geomName).create(diffName, "Difference");
+        }
+
+        model.component(compName).geom(geomName).feature(diffName).selection("input").set(rectArr);
+        model.component(compName).geom(geomName).feature(diffName).selection("input2")
+                .set(trianglePostArr);
+
+        System.out.println("Got to difference.");
+
+
+        try {
+            model.component(compName).geom(geomName).run();
+            model.component(compName).geom(geomName).runPre("fin");
+
+            System.out.println("Got to after run and before FISR");
+            if (hasFISR) {
+//            try {
+//                model.component(compName).physics("tds").create(fisrName, "FastIrreversibleSurfaceReaction", 1);
+//                System.out.println("applied FISR");
+//            } catch(Exception e) {
+//                model.component(compName).physics("tds").feature().remove(fisrName);
+//                model.component(compName).physics("tds").create(fisrName, "FastIrreversibleSurfaceReaction", 1);
+//                System.out.println("applied FISR2");
+//            }
+//            getEdges();
+//            getVertices();
+                applyFISR(getFISREdges(getEdges(), getVertices()), fisrName);
+
+                setMeshSize(DEFAULT_MESH_SIZE);
+                model.component(compName).mesh("mesh1").automatic(true);
+
+                recreateSol("st1", "v1", "s1");
+                Instant stop = Instant.now();
+
+                System.out.println("Updating chip's geometries: " + Duration.between(start, stop).toMillis());
+                totalTime += Duration.between(start, stop).toMillis();
+
+                model.component(compName).physics("spf").feature("inl1").set("U0in", inletMPerSec);
+
+                runResultSetup();
+            }
+        } catch (Exception e) {
+            hadError = true;
+            File file = new File("error" + fileIter + ".log");
+            PrintStream ps = new PrintStream(file);
+            ps.println("Error for not-created file occurring after " + fileIter);
+            System.out.println("Number triangles: " + triangleInfo.length);
+            for (int row = 0; row < triangleInfo.length; row++) {
+                ps.print("Triangle " + row + ": ");
+//                System.out.println("Rect " + row + ": ");
+                for (int param = 0; param < triangleInfo[row].length; param++) {
+                    ps.print(triangleInfo[row][param] + " ");
+                }
+                ps.println();
+            }
+
+            e.printStackTrace(ps);
+            ps.close();
+
+            try {
+                modelName = exportDir + filenamePrefix + fileIter + "_mixer(error)";
+                fileIter++;
+                model.save(modelName);
+            } catch (Exception f) {
+                System.out.println("Failed to create errored mph file in the Exception.");
+                f.printStackTrace();
+            }
+
+//            System.out.println("got to end of exception");
+        }
+    }
+
+    public void startPinwheel(double[][] postInfo, double inletMPerSec, boolean hasFISR) throws FileNotFoundException {
+        hadError = false;
+//        currentRectSet = new double[postInfo.length][PinwheelPostProblem.NUM_POST_VARS];
+
+        removeRectPosts();
+        removeCircles();
+
+        System.out.println("Got to removing rectangles and circles.");
+        Instant start = Instant.now();
+//        try {
+        for (int i = 0; i < postInfo.length; i++) {
+            double posX = postInfo[i][0];
+            double posY = postInfo[i][1];
+            double width = postInfo[i][2];
+            double height = postInfo[i][3];
+            double radius = postInfo[i][4];
+            double rotation = postInfo[i][5];
+
+
+            System.out.println("X: " + posX + " Y: " + posY + " W: " + width + " L: " + height + " Rad: " + radius +
+                    " Rot: " + rotation);
+
+            double radRotate = rotation * Math.PI/180.0;
+            double[][] crossRectangles = new double[][]{
+                    {-width/2.0, -height/2.0},
+                    {-height/2.0, -width/2.0}
+            };
+
+            for (double[] rect : crossRectangles) {
+                double newX = rect[0] * Math.cos(radRotate) - rect[1] * Math.sin(radRotate) + posX;
+                double newY = rect[0] * Math.sin(radRotate) + rect[1] * Math.cos(radRotate) + posY;
+                rect[0] = newX;
+                rect[1] = newY;
+            }
+
+            addRectPosts("r1_" + i, crossRectangles[0][0], crossRectangles[0][1], width, height, rotation);
+            addRectPosts("r2_" + i, crossRectangles[1][0], crossRectangles[1][1], height, width, rotation);
+            addCircle("c" + i, posX, posY, radius);
+            double[] rectData = {posX, posY, width, height, rotation};
+//            currentRectSet[i] = rectData;
+        }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+        System.out.println("Got to adding pinwheel posts.");
+
+        int numRectPosts = rectPostNames.size();
+        String[] postArr = new String[numRectPosts + circleNames.size()];
+        for (int i = 0; i < numRectPosts; i++) {
+            postArr[i] = rectPostNames.get(i);
+        }
+        int startIndex = rectPostNames.size();
+        for(int j=0; j < circleNames.size(); j++) {
+            postArr[numRectPosts + j] = circleNames.get(j);
+        }
+
+        String[] rectArr = new String[rectNames.size()];
+        rectArr = rectNames.toArray(rectArr);
+
+        try {
+            model.component(compName).geom(geomName).create("dif1", "Difference");
+        } catch (Exception e) {
+            model.component(compName).geom(geomName).feature().remove(diffName);
+            model.component(compName).geom(geomName).create(diffName, "Difference");
+        }
+
+        model.component(compName).geom(geomName).feature(diffName).selection("input").set(rectArr);
+        model.component(compName).geom(geomName).feature(diffName).selection("input2")
+                .set(postArr);
+
+        System.out.println("Got to difference.");
+
+
+        try {
+            model.component(compName).geom(geomName).run();
+            model.component(compName).geom(geomName).runPre("fin");
+
+            System.out.println("Got to after run and before FISR");
+            if (hasFISR) {
+//            try {
+//                model.component(compName).physics("tds").create(fisrName, "FastIrreversibleSurfaceReaction", 1);
+//                System.out.println("applied FISR");
+//            } catch(Exception e) {
+//                model.component(compName).physics("tds").feature().remove(fisrName);
+//                model.component(compName).physics("tds").create(fisrName, "FastIrreversibleSurfaceReaction", 1);
+//                System.out.println("applied FISR2");
+//            }
+//            getEdges();
+//            getVertices();
+                applyFISR(getFISREdges(getEdges(), getVertices()), fisrName);
+
+                setMeshSize(DEFAULT_MESH_SIZE);
+                model.component(compName).mesh("mesh1").automatic(true);
+
+                recreateSol("st1", "v1", "s1");
+                Instant stop = Instant.now();
+
+                System.out.println("Updating chip's geometries: " + Duration.between(start, stop).toMillis());
+                totalTime += Duration.between(start, stop).toMillis();
+
+                model.component(compName).physics("spf").feature("inl1").set("U0in", inletMPerSec);
+
+                runResultSetup();
+            }
+        } catch (Exception e) {
+            hadError = true;
+            File file = new File("error" + fileIter + ".log");
+            PrintStream ps = new PrintStream(file);
+            ps.println("Error for not-created file occurring after " + fileIter);
+            System.out.println("Number posts: " + postInfo.length);
+            for (int row = 0; row < postInfo.length; row++) {
+                ps.print("Post " + row + ": ");
+                for (int param = 0; param < postInfo[row].length; param++) {
+                    ps.print(postInfo[row][param] + " ");
                 }
                 ps.println();
             }
@@ -455,24 +687,6 @@ public class TSimpleMixer {
      */
     private void runResultSetup() {
         model.sol(solName).attach("std1");
-        int j = 0;
-
-//        double[][] edges = getEdges();
-//        double[][] vertices = getVertices();
-//        System.out.println("edges");
-//        for (int i = 0; i < edges.length; i++) {
-//            for (int k = 0; k < edges[i].length;k++) {
-//                System.out.print(edges[i][k] + " ");
-//            }
-//            System.out.println();
-//        }
-//        System.out.println("vertices");
-//        for (int i = 0; i < vertices.length; i++) {
-//            for (int k= 0; k < vertices[i].length; k++) {
-//                System.out.print(vertices[i][k] + " ");
-//            }
-//            System.out.println();
-//        }
 
         Instant start = Instant.now();
         try {
@@ -570,12 +784,16 @@ public class TSimpleMixer {
         } catch (Exception e) { }
 
 //    if(!hadError)
-//      model.save(exportDir  + "Mixer" + filenamePrefix + fileIter, "java");
 
         try {
             model.save(modelName);
         } catch (IOException e) {
             System.out.println("Failed to create mph file.");
+        }
+        try {
+            model.save(exportDir  + filenamePrefix + fileIter, "java");
+        } catch (Exception e) {
+            System.out.println("Failed to create java file.");
         }
         fileIter++;
         Instant stop2 = Instant.now();
@@ -583,13 +801,6 @@ public class TSimpleMixer {
         totalTime += Duration.between(start2, stop2).toMillis();
     }
 
-//  private double getAverageConc(double[][] data) {
-//    int count = data.length;
-//    double sum = 0;
-//    for (double[] row : data)
-//      sum += row[1];
-//    return sum/(count * 1.0);
-//  }
 
     private double[][] readFirstHalfConcs(String filename) throws IOException {
         ArrayList<double[]> data = new ArrayList<>();
@@ -711,6 +922,15 @@ public class TSimpleMixer {
         }
     }
 
+    private void removeTrianglePosts() {
+        if (trianglePostNames.size() > 0) {
+            for (String name : trianglePostNames) {
+                model.component(compName).geom(geomName).feature().remove(name);
+            }
+            trianglePostNames = new ArrayList<>();
+        }
+    }
+
     /**
      * Removes a given circle from a chip.
      *
@@ -781,6 +1001,14 @@ public class TSimpleMixer {
         model.component(compName).geom(geomName).feature(name).set("size", new double[]{width, height});
         model.component(compName).geom(geomName).feature(name).set("pos", new double[]{posX, posY});
         model.component(compName).geom(geomName).feature(name).set("rot", rotation);
+    }
+
+    public void addTrianglePosts(String name, double x1, double y1, double x2, double y2, double x3, double y3) {
+        trianglePostNames.add(name);
+        model.component(compName).geom(geomName).create(name, "Polygon");
+        model.component(compName).geom(geomName).feature(name).set("source", "table");
+        model.component(compName).geom(geomName).feature(name)
+                .set("table", new double[][]{{x1, y1}, {x2, y2}, {x3, y3}});
     }
 
     /**
@@ -1067,33 +1295,9 @@ public class TSimpleMixer {
         model.result().export().create("img2", "pg4", "Image");
         model.result().export().create("img3", "pg2", "Image");
         model.result().export().create("img4", "pg5", "Image");
-
-//        model.result().numerical().create("av1", "AvLine");
-//        model.result().numerical("av1").set("intsurface", true);
-//        model.result().numerical("av1").selection().set(getEdgeNum(getRectEdge(rectNames.get(0), "left")));
-//        model.result().numerical("av1").set("expr", new String[]{"p"});
-//        model.result().numerical("av1").set("descr", new String[]{"Pressure"});
-//        model.result().table().create("tbl1", "Table");
-//        model.result().table("tbl1").comments("Line Average 1");
-//        model.result().numerical("av1").set("table", "tbl1");
-//        model.result().numerical("av1").setResult();
-//        double[][] avgPressure = model.result().table("tbl1").getReal();
-//        System.out.println("Table row: " + avgPressure.length);
-//        System.out.println("Table col: " + avgPressure[0].length);
-//        for (double[] row : avgPressure) {
-//            for (double value : row) {
-//                System.out.println(value);
-//            }
-//        }
-
-
     }
 
     private void recreateSol(String studyStepName, String varName, String stationaryName) {
-//    model.study("std1").feature("stat").set("notlistsolnum", 1);
-//    model.study("std1").feature("stat").set("notsolnum", "1");
-//    model.study("std1").feature("stat").set("listsolnum", 1);
-//    model.study("std1").feature("stat").set("solnum", "1");
         model.sol(solName).feature().remove(studyStepName);
         model.sol(solName).feature().remove(varName);
         model.sol(solName).feature().remove(stationaryName);
@@ -1110,8 +1314,6 @@ public class TSimpleMixer {
         model.sol(solName).feature(studyStepName).set("studystep", "stat");
         model.sol(solName).feature(varName).set("control", "stat");
 
-//    model.sol(solName).feature("s1").set("stol", 0.001);
-//    model.sol(solName).feature("s1").create("seDef", "Segregated");
         model.sol(solName).feature(stationaryName).create("fc1", "FullyCoupled");
         model.sol(solName).feature(stationaryName).create("d1", "Direct");
         model.sol(solName).feature(stationaryName).create("i1", "Iterative");
@@ -1120,7 +1322,6 @@ public class TSimpleMixer {
         model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("po").create("sc1", "SCGS");
         model.sol(solName).feature(stationaryName).feature("i1").feature("mg1").feature("cs").create("d1", "Direct");
         model.sol(solName).feature(stationaryName).feature().remove("fcDef");
-//    model.sol(solName).feature("s1").feature().remove("seDef");
 
         model.sol(solName).feature(stationaryName).feature("aDef").set("cachepattern", true);
         model.sol(solName).feature(stationaryName).feature("fc1").set("linsolver", "d1");
@@ -1157,9 +1358,7 @@ public class TSimpleMixer {
     }
 
     private void applyFISR(int[] edges, String fisrName) {
-//        System.out.print("File "+ fileIter + ": ");
         for (int edge : edges) {
-//            System.out.print(edge + " ");
             model.component(compName).physics("tds").feature(fisrName).selection().set(edge);
         }
         System.out.println();
@@ -1168,41 +1367,10 @@ public class TSimpleMixer {
 
     private int[] getFISREdges(double[][] edges, double[][] vertices) {
         ArrayList<Integer> results = new ArrayList<>();
-        ArrayList<Integer> allowedVertices = new ArrayList<>();
-        int numVertices = vertices[0].length;
         int numEdges = edges[0].length;
-        double leftBound = MAIN_CHANNEL_DIM[0];
-        double bottomBound = MAIN_CHANNEL_DIM[1];
-        double rightBound = MAIN_CHANNEL_DIM[0] + MAIN_CHANNEL_DIM[2];
-        double topBound = MAIN_CHANNEL_DIM[1] + MAIN_CHANNEL_DIM[3];
-        final double EPSILON = 1E-4;
-
-//        for (int i = 0; i < numVertices; i++) {
-//            double vert1 = vertices[0][i];
-//            double vert2 = vertices[1][i];
-////            System.out.println("Vert  " + i + ": " + vert1 + ", " + vert2);
-////            if (vert1 > leftBound + EPSILON && vert1 < rightBound - EPSILON && vert2 > bottomBound + EPSILON && vert2 <
-////                    topBound - EPSILON)
-//            if (vert1 >= leftBound && vert1 <= rightBound)
-////            if (vert1 > leftBound && vert1 < rightBound && vert2 > bottomBound && vert2 < topBound)
-//            {
-//                    allowedVertices.add(i + 1);
-////                    System.out.println("Allowed vert (" + (i+1) + "): " + vert1 + ", " + vert2);
-//            }
-//        }
-//
-//        for (int i = 0; i < numEdges; i++) {
-//            int edge1 = (int) edges[0][i];
-//            int edge2 = (int) edges[1][i];
-////            System.out.println("edge row: " + i + " , " + edges[0][i] + " " + edges[1][i]);
-//            if (allowedVertices.contains(edge1) && allowedVertices.contains(edge2)) {
-//                results.add(i + 1);
-////                System.out.println("Allowed edge (" + (i+1) + "): " + edge1 + ", " + edge2);
-//            }
-//        }
-
         int leftEdgeNum = getEdgeNum(getRectEdge(rectNames.get(0), "left"));
         int rightEdgeNum = getEdgeNum(getRectEdge(rectNames.get(0), "right"));
+
         for (int edgeNum = 1; edgeNum <= numEdges; edgeNum++) {
             if (!(edgeNum == leftEdgeNum || edgeNum == rightEdgeNum)) {
                 results.add(edgeNum);
@@ -1288,6 +1456,10 @@ public class TSimpleMixer {
         return null;
     }
 
+    /**
+     * Gets the list of all the edges from COMSOL.
+     * @return The list of edges in the chip from COMSOL
+     */
     public double[][] getEdges() {
         double[][] edgeData = model.component(compName).geom(geomName).getEdge();
         return edgeData;
@@ -1295,7 +1467,6 @@ public class TSimpleMixer {
 
     /**
      * Gets the list of all vertices in the chip from COMSOL.
-     *
      * @return The list of vertices in the chip from COMSOL.
      */
     public double[][] getVertices() {
@@ -1404,6 +1575,10 @@ public class TSimpleMixer {
         model.component(compName).material("mat1").propertyGroup("def").addInput("temperature");
     }
 
+    /**
+     * Creates a class representing a rectangle. The vertices can be referenced and is used to help calculate edges
+     * of the rectangle for COMSOL use.
+     */
     class Rectangle {
         String name;
         double posX;
@@ -1413,6 +1588,14 @@ public class TSimpleMixer {
         double[][] verticesCoords;
         double rotation;
 
+        /**
+         * Craetes a rectangle.
+         * @param name
+         * @param posX
+         * @param posY
+         * @param width
+         * @param height
+         */
         public Rectangle(String name, double posX, double posY, double width, double height) {
             verticesCoords = new double[4][2];
             this.name = name;
@@ -1420,6 +1603,8 @@ public class TSimpleMixer {
             this.posY = posY;
             this.width = width;
             this.height = height;
+            rotation = 0;
+
             //origin
             verticesCoords[0][0] = posX;
             verticesCoords[0][1] = posY;
@@ -1432,10 +1617,17 @@ public class TSimpleMixer {
             //bottom right corner
             verticesCoords[3][0] = posX + width;
             verticesCoords[3][1] = posY;
-
-            rotation = 0;
         }
 
+        /**
+         * Creates a rectangle that has a rotation parameter.
+         * @param name The name/id of the rectangle
+         * @param posX
+         * @param posY
+         * @param width
+         * @param height
+         * @param rotation
+         */
         public Rectangle(String name, double posX, double posY, double width, double height, double rotation) {
             this(name, posX, posY, width, height);
 
@@ -1460,7 +1652,6 @@ public class TSimpleMixer {
             newY = (sine * verticesCoords[3][0]) + (cosine * verticesCoords[3][1]);
             verticesCoords[3][0] = newX;
             verticesCoords[3][0] = newY;
-
         }
     }
 }

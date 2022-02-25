@@ -1,6 +1,5 @@
 package NSGA2;
 
-import NSGA2.ChipDesign;
 import org.moeaframework.core.Solution;
 import org.moeaframework.core.variable.RealVariable;
 import org.moeaframework.problem.AbstractProblem;
@@ -29,7 +28,7 @@ public class CircularPostMixerProblem extends AbstractProblem {
     static final int NUM_OBJECTIVES = 2; //set 1 just for concentration
     static final int NUM_CIRCLE_VARS = 3;
     private static final int CIRCLE_VARS_FOR_NSGAII = 3;
-    private static final int NUM_FLOW_RATE_VARS = 1;
+    private static final int NUM_FLOW_RATE_VARS = 1; //setting for if you want varying flow rate
     static final int CONC_OBJECTIVE_INDEX = 0;
     static final int PRESSURE_OBJECTIVE_INDEX = 1;
 
@@ -45,22 +44,19 @@ public class CircularPostMixerProblem extends AbstractProblem {
     static final double[] MAIN_CHANNEL_DIM = {-5, 0, 10, 1}; //to add to addRect, x, y, width, height in mm
     static final double[] CROSS_CHANNEL_DIM = {-4, -1, 1, 3}; //to add to addRect, x, y, width, height in mm
 
-//    static final int POPULATION_SIZE = 80;
-//    static final int TOTAL_EVALS = 4000;
     static final int POPULATION_SIZE = 200;
     static final int TOTAL_EVALS = 12000;
     static final int NUM_UM_PER_TOTAL_VARS = 3;
     static final int NUM_UX_PER_TOTAL_VARS = 3;
-    static final int MESH_SIZE = MixerTest.mixer.DEFAULT_MESH_SIZE;
-//    static final int MESH_SIZE = 9; //minimum mesh size (1-9)
+    static final int MESH_SIZE = MixerTest.mixer.DEFAULT_MESH_SIZE; //minimum mesh size (1-9)
 
     private final double MAX_REYNOLDS = 1500;
     private final double MAX_PRESSURE = 5; //5 Pascals
     static final double MIN_RADIUS = 0.1;
     private final double MAX_RADIUS = 0.1;
     private final double ENTRY_EXIT_BUFFER = MAIN_CHANNEL_DIM[3] * 2;
-    private final double MIN_X = MAIN_CHANNEL_DIM[0] + ENTRY_EXIT_BUFFER * 2;
-//    private final double MIN_X = MAIN_CHANNEL_DIM[0] + ENTRY_EXIT_BUFFER;
+    private final double MIN_X = MAIN_CHANNEL_DIM[0] + ENTRY_EXIT_BUFFER;
+    //    private final double MIN_X = MAIN_CHANNEL_DIM[0] + ENTRY_EXIT_BUFFER;
     private final double MAX_X = MAIN_CHANNEL_DIM[0] + MAIN_CHANNEL_DIM[2] - ENTRY_EXIT_BUFFER;
     private final double MIN_Y = MAIN_CHANNEL_DIM[1];
     private final double MAX_Y = MAIN_CHANNEL_DIM[1] + MAIN_CHANNEL_DIM[3];
@@ -124,9 +120,6 @@ public class CircularPostMixerProblem extends AbstractProblem {
         return NUM_CIRCLES;
     }
 
-//    public static int getNumCircleVars() {
-//        return NUM_CIRCLE_VARS;
-//    }
 
     private static int getConstraints() {
         int rangeConstraints = 0;
@@ -194,24 +187,11 @@ public class CircularPostMixerProblem extends AbstractProblem {
 //        setFlowRateConstraints(solution);
 
         flowRate = MIN_FLOW_RATE; //TODO remove when flow rate is varying
-//        System.out.println("Info: " + ((RealVariable)solution.getVariable(16)).getValue());
-//        while (solution.violatesConstraints()) {
-//            solution = newSolution();
-//            assignVariablesToCircleArray(solution);
-//            setConstraints(solution);
-//            System.out.println("Got to here");
-//        }
-//        do {
-//            try {
-//        if (!solution.violatesConstraints()) {
         Instant foundSol = Instant.now();
-//            System.out.println("Time to find within position constraints: " + Duration.between(start,
-//                    foundSol).toMillis());
         MixerTest.problemRuntime += Duration.between(start, foundSol).toMillis();
         int popNumber = numEvals++ / POPULATION_SIZE + 1;
         MixerTest.mixer.setFilenamePrefix("Mesh" + MESH_SIZE + "_P" + popNumber + "_");
-//            MixerTest.mixer.start(circlesInfo);
-        System.out.println("got to here");
+
         Instant startMixerTime = Instant.now();
         try {
             MixerTest.mixer.start(circlesInfo, flowRate, HAS_FISR, MESH_SIZE);
@@ -219,20 +199,6 @@ public class CircularPostMixerProblem extends AbstractProblem {
             e.printStackTrace();
         }
         Instant endMixerTime = Instant.now();
-        System.out.println("got to here");
-
-//                hadError = false;
-//            } catch (Exception e) {
-//                hadError = true;
-//                File lastFile = new File(MixerTest.mixer.getLastFilename());
-//                String path = lastFile.getPath();
-//                String newPath = path.substring(0,path.length()-4) + "(error)" + path.substring(path.length()-4);
-//                lastFile.renameTo(new File(newPath));
-//                solution = newSolution();
-//                assignVariablesToCircleArray(solution);
-//                setConstraints(solution);
-//            }
-//        }while (hadError == true);
         Instant objTime = Instant.now();
         try {
             setConcObjective(solution, MixerTest.mixer.getConc(), OBJECTIVE_TYPE_INDEX);
@@ -253,7 +219,6 @@ public class CircularPostMixerProblem extends AbstractProblem {
         designIter++;
 
         Instant objEndTime = Instant.now();
-//            System.out.println("Time to test objective: " + Duration.between(objTime, objEndTime).toMillis());
         MixerTest.problemRuntime += Duration.between(objTime, objEndTime).toMillis();
 //        }
 //        else {
@@ -274,15 +239,9 @@ public class CircularPostMixerProblem extends AbstractProblem {
 //            setObjective(solution, null, OBJECTIVE_INDEX);
 //        }
         Instant lastConstEnd = Instant.now();
-//        double decimalPlaces = 1000.0;
-//        System.out.println(Math.round(solution.getObjective(0) * decimalPlaces) / decimalPlaces);
-//        System.out.println("Last Constraint time: " + Duration.between(lastConsStart, lastConstEnd).toMillis());
-//        MixerTest.problemRuntime += Duration.between(lastConsStart, lastConstEnd).toMillis();
         elapsedTime += Duration.between(evalTimeStart, lastConstEnd).toMillis();
         System.out.println("Evaluation " + numEvals + " Current total runtime (ms): " + elapsedTime);
 
-//        System.out.println();
-//        System.out.println(numEvals++);
     }
 
     private void assignFlowRateVar(Solution solution) {
@@ -290,13 +249,10 @@ public class CircularPostMixerProblem extends AbstractProblem {
     }
 
     private void assignVariablesToCircleArray(Solution solution) {
-//        int iter = 0;
-//        circlesInfo = new double[NUM_CIRCLES][NUM_CIRCLE_VARS];
         ArrayList<double[]> circlesArrayList = new ArrayList<>();
         System.out.println("Num variables: " + solution.getNumberOfVariables());
-        for (int iter = 0; iter < solution.getNumberOfVariables(); iter += 3) {
-//        for (int iter = 0; iter < solution.getNumberOfVariables(); iter += 2) {
-            if (((RealVariable) solution.getVariable(iter + 2)).getValue() >=
+        for (int iter = 0; iter < solution.getNumberOfVariables(); iter += NUM_CIRCLE_VARS) {
+            if (((RealVariable) solution.getVariable(iter + (NUM_CIRCLE_VARS - 1))).getValue() >=
                     (1 - CIRCLE_ACCEPTANCE_CRITERIA)) {
                 circlesArrayList.add(
                         new double[]{
@@ -307,27 +263,12 @@ public class CircularPostMixerProblem extends AbstractProblem {
             }
         }
 
-
         System.out.println("Adding " + circlesArrayList.size() + " circles.");
         circlesInfo = new double[circlesArrayList.size()][NUM_CIRCLE_VARS];
         for (int circle = 0; circle < circlesArrayList.size(); circle++) {
             circlesInfo[circle] = circlesArrayList.get(circle);
         }
         designs.add(new ChipDesign(circlesInfo));
-//        for (int row = 0; row < circlesInfo.length; row++) {
-//            for (int col = 0; col < circlesInfo[row].length; col++) {
-//                //TODO remove when radius is allowed to change
-//                if (col == circlesInfo[row].length - 1) {
-//                    circlesInfo[row][col] = MIN_RADIUS;
-//                }
-//                else {
-//                    circlesInfo[row][col] = ((RealVariable) solution.getVariable(iter++)).getValue();
-//                }
-//                System.out.print(circlesInfo[row][col] + " ");
-//
-//            }
-//            System.out.println();
-//        }
     }
 
     /**
@@ -343,7 +284,7 @@ public class CircularPostMixerProblem extends AbstractProblem {
             designs.get(designIter).concObj = Double.MIN_VALUE;
         } else if (objective == 5) {
             double capture = getCaptureEfficiency(concs);
-            solution.setObjective(CONC_OBJECTIVE_INDEX,-1.0 * capture);
+            solution.setObjective(CONC_OBJECTIVE_INDEX, -1.0 * capture);
             designs.get(designIter).concObj = capture;
         } else {
 

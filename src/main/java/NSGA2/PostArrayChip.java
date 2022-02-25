@@ -47,24 +47,23 @@ public class PostArrayChip {
 //        ModelUtil.clear();
 //        ModelUtil.disconnect();
 
-        String concFile = "D:\\COMSOL Research\\63) pattern testing\\analyzing 100 chip\\" + "removestep16_exitconc.txt";
-        String pressureFile = "D:\\COMSOL Research\\63) pattern testing\\analyzing 100 chip\\" + "removestep16_entrypressure.txt";
+        String prevConcFile = "D:\\COMSOL Research\\63) pattern testing\\cutlines\\max_100_P8_384\\" + "1newmesh_6_conc.txt";
+        String concFile = "D:\\COMSOL Research\\63) pattern testing\\cutlines\\max_100_P8_384\\" + "1newmesh_7_conc.txt";
+        String pressureFile = "D:\\COMSOL Research\\63) pattern testing\\cutlines\\max_100_P8_384\\" + "1newmesh_7_pressure.txt";
 
         double[][] concs = getFileDataPts(new BufferedReader(new FileReader(concFile)));
         double[][] pressures = getFileDataPts(new BufferedReader(new FileReader(pressureFile)));
         double capture = getCaptureEfficiency(concs);
+        double averageConc = getAverage(concs);
         double pressure = pressures[pressures.length / 2][1];
 
 //        System.out.println("Post added: ");
         System.out.println("Capture (%):" + capture);
-        System.out.println("Center Pressure (Pa): " + pressure);
-
-        double avgPressure = 0;
-        for (double[] datapt : pressures) {
-            avgPressure += datapt[1];
-        }
-        avgPressure = avgPressure / (pressures.length * 1.0);
-        System.out.println("Average Pressure (Pa): " + avgPressure);
+        System.out.println("Capture compared to prev section (%): " + getCaptureEfficiency(concs,
+                getAverage(getFileDataPts(new BufferedReader(new FileReader(prevConcFile))))));
+        System.out.println("Average Concentration: " + averageConc);
+//        System.out.println("Center Pressure (Pa): " + pressure);
+        System.out.println("Average Pressure (Pa): " + getAverage(pressures));
 
 //        concFile = "D:\\COMSOL Research\\63) pattern testing\\7 shifted\\remove center\\" + "nopostadded_exitconc.txt";
 //        pressureFile = "D:\\COMSOL Research\\63) pattern testing\\7 shifted\\remove center\\" + "nopostadded_entrypressure.txt";
@@ -157,16 +156,34 @@ public class PostArrayChip {
         return result;
     }
 
-    private static double getCaptureEfficiency(double[][] concs) {
-//        for (double[] row : concs) {
-//            System.out.println(row[1]);
+//    private static double getCaptureEfficiency(double[][] concs) {
+////        for (double[] row : concs) {
+////            System.out.println(row[1]);
+////        }
+//        double result = 0;
+//        for (int i = 0; i < concs.length; i++) {
+//            result += concs[i][1];
 //        }
-        double result = 0;
-        for (int i = 0; i < concs.length; i++) {
-            result += concs[i][1];
-        }
-        result /= (concs.length * CircularPostMixerProblem.INFLOW_CONC_1);
-//        System.out.println(result);
+//        result /= (concs.length * CircularPostMixerProblem.INFLOW_CONC_1);
+////        System.out.println(result);
+//        return (1 - result) * 100.0;
+//    }
+
+    private static double getCaptureEfficiency(double[][] concs) {
+        return getCaptureEfficiency(concs,CircularPostMixerProblem.INFLOW_CONC_1);
+    }
+
+    private static double getCaptureEfficiency(double[][] concs, double inflowConc) {
+        double result = getAverage(concs);
+        result /= (inflowConc);
         return (1 - result) * 100.0;
+    }
+
+    private static double getAverage(double[][] valuesInSecondCol) {
+        double result = 0;
+        for (int i = 0; i < valuesInSecondCol.length; i++) {
+            result += valuesInSecondCol[i][1];
+        }
+        return result / (valuesInSecondCol.length * 1.0);
     }
 }

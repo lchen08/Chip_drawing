@@ -24,26 +24,28 @@ import java.util.ArrayList;
  * @version 1.0
  * @since Jan 26, 2021
  */
-public class RectanglePostMixerProblem extends AbstractProblem {
+public class PinwheelPostProblem extends AbstractProblem {
     private final String[] OBJECTIVES = {"flat", "0.45x", "high 0.1 edge", "high 0.7 edge", "section objective", "0 conc"};
     static final int NUM_OBJECTIVES = 2; //set 1 just for concentration
-    static final int NUM_RECT_VARS = 5;
-    private static final int RECT_VARS_FOR_NSGAII = 4;
+    static final int NUM_POST_VARS = 6; //x position, y pos, rectangle width, rectangle length, circle radius, rotation
+    static final int VARS_FOR_NSGAII = 4;
     private static final int NUM_FLOW_RATE_VARS = 1;
     static final int CONC_OBJECTIVE_INDEX = 0;
     static final int PRESSURE_OBJECTIVE_INDEX = 1;
 
     //user specifications
-    private final static int NUM_RECT = 100;
+    private final static int NUM_POSTS = 100;
     private final int OBJECTIVE_TYPE_INDEX = 5;
     static final boolean HAS_FISR = true;
     static final double STOICHIOMETRIC_COEFF = 1;
-    static final double RECT_ACCEPTANCE_CRITERIA = 0.5;
+    static final double POST_ACCEPTANCE_CRITERIA = 0.5;
 
     static final double INFLOW_CONC_1 = 1;
     static final double INFLOW_CONC_2 = 1; //set to 0 for mixer
 
-    static final double MIN_WIDTH = 0.2;
+    static final double RECT_WIDTH = 0.2;
+    static final double RECT_LENGTH = 0.05;
+    static final double RADIUS = 0.05;
     static final double MIN_ROTATION = 0;
     static final double MAX_ROTATION = 90;
     static final double[] MAIN_CHANNEL_DIM = {-5, 0, 10, 1}; //to add to addRect, x, y, width, height in mm
@@ -51,8 +53,8 @@ public class RectanglePostMixerProblem extends AbstractProblem {
 
     static final int POPULATION_SIZE = 50;
     static final int TOTAL_EVALS = 4000;
-    static final int NUM_UM_PER_TOTAL_VARS = 10;
-    static final int NUM_UX_PER_TOTAL_VARS = 10;
+    static final int NUM_UM_PER_TOTAL_VARS = 3;
+    static final int NUM_UX_PER_TOTAL_VARS = 3;
 
     private final double MAX_REYNOLDS = 1500;
     private final double MAX_PRESSURE = 5; //5 Pascals
@@ -66,13 +68,13 @@ public class RectanglePostMixerProblem extends AbstractProblem {
     static final double MAX_FLOW_RATE = 0.001;
     //end user specifications
 
-    final static int TOTAL_VARS = NUM_RECT * RECT_VARS_FOR_NSGAII;
+    final static int TOTAL_VARS = NUM_POSTS * VARS_FOR_NSGAII;
     static final int UM_RATE = NUM_UM_PER_TOTAL_VARS / TOTAL_VARS;
     static final int UX_RATE = NUM_UX_PER_TOTAL_VARS / TOTAL_VARS;
     private int constraintNotSatisfied = -1;
     private int constraintSatisfied = 0;
     static int numConstraints;
-    private double[][] rectInfo;
+    private double[][] postInfo;
     private double flowRate;
     private static double calcMaxFlowRate;
     private int errorConstraintIndex;
@@ -82,13 +84,8 @@ public class RectanglePostMixerProblem extends AbstractProblem {
     private long elapsedTime = 0;
 
 
-    public RectanglePostMixerProblem() throws InterruptedException {
+    public PinwheelPostProblem() throws InterruptedException {
         super(TOTAL_VARS, NUM_OBJECTIVES, getConstraints());
-        //TODO bring back constraints as needed
-//        errorConstraintIndex = numConstraints - 2;
-//        flowRateConstraintIndex = numConstraints - 1;
-//        flowRateVarIndex = TOTAL_VARS - 1;
-//        circlesInfo = new double[NUM_CIRCLES][NUM_CIRCLE_VARS];
         setCalcMaxFlowRate();
     }
 
@@ -113,8 +110,8 @@ public class RectanglePostMixerProblem extends AbstractProblem {
         return flowRateVarIndex;
     }
 
-    public static int getNumRect() {
-        return NUM_RECT;
+    public static int getNumPosts() {
+        return NUM_POSTS;
     }
 
 
@@ -147,8 +144,8 @@ public class RectanglePostMixerProblem extends AbstractProblem {
 //        for (int i = 0; i < TOTAL_VARS - 1; i++) { //if using flow var
         //X, Y, Pos, Height, rotation
         for (int i = 0; i < TOTAL_VARS; i++) {
-            solution.setVariable(i++, new RealVariable(MIN_X + MIN_WIDTH, MAX_X - MIN_WIDTH));
-            solution.setVariable(i++, new RealVariable(MIN_Y - MIN_WIDTH, MAX_Y));
+            solution.setVariable(i++, new RealVariable(MIN_X + RECT_LENGTH, MAX_X - RECT_LENGTH));
+            solution.setVariable(i++, new RealVariable(MIN_Y - RECT_LENGTH, MAX_Y));
             solution.setVariable(i++, new RealVariable(MIN_ROTATION, MAX_ROTATION));
             solution.setVariable(i, new RealVariable(0, 1)); //for when you want varied posts
         }
@@ -170,7 +167,7 @@ public class RectanglePostMixerProblem extends AbstractProblem {
 //        numEvals++;
         Instant start = Instant.now();
         System.out.println("Got to here");
-        assignVariablesToRectArray(solution);
+        assignVariablesToArray(solution);
         assignFlowRateVar(solution);
 
 
@@ -189,9 +186,9 @@ public class RectanglePostMixerProblem extends AbstractProblem {
         int popNumber = numEvals++ / POPULATION_SIZE + 1;
         MixerTest.mixer.setFilenamePrefix("P" + popNumber + "_");
         try {
-            MixerTest.mixer.startRect(rectInfo, flowRate, HAS_FISR);
+            MixerTest.mixer.startPinwheel(postInfo, flowRate, HAS_FISR);
         } catch (Exception e) {
-            System.out.println("startRect gave an error");
+            System.out.println("startPinwheel gave an error");
             e.printStackTrace();
         }
 
@@ -245,27 +242,27 @@ public class RectanglePostMixerProblem extends AbstractProblem {
         flowRate = ((RealVariable) solution.getVariable(flowRateVarIndex)).getValue();
     }
 
-    private void assignVariablesToRectArray(Solution solution) {
+    private void assignVariablesToArray(Solution solution) {
 //        int iter = 0;
 //        circlesInfo = new double[NUM_CIRCLES][NUM_CIRCLE_VARS];
-        ArrayList<double[]> rectArrayList = new ArrayList<>();
+        ArrayList<double[]> postArrayList = new ArrayList<>();
 //        System.out.println("Num variables: " + solution.getNumberOfVariables());
-        for (int iter = 0; iter < solution.getNumberOfVariables(); iter += 4) {
-            if (((RealVariable) solution.getVariable(iter + 3)).getValue() >=
-                    (1 - RECT_ACCEPTANCE_CRITERIA)) {
-                rectArrayList.add(
+        for (int iter = 0; iter < solution.getNumberOfVariables(); iter += VARS_FOR_NSGAII) {
+            if (((RealVariable) solution.getVariable(iter + (VARS_FOR_NSGAII - 1))).getValue() >=
+                    (1 - POST_ACCEPTANCE_CRITERIA)) {
+                postArrayList.add(
                         new double[]{
                                 ((RealVariable) solution.getVariable(iter)).getValue()
                                 , ((RealVariable) solution.getVariable(iter + 1)).getValue()
-                                , MIN_WIDTH, MIN_WIDTH
+                                , RECT_WIDTH, RECT_LENGTH, RADIUS
                                 , ((RealVariable) solution.getVariable(iter + 2)).getValue()
                         });
             }
         }
-        System.out.println("Num rect: " + rectArrayList.size());
-        rectInfo = new double[rectArrayList.size()][NUM_RECT_VARS];
-        for (int rect = 0; rect < rectArrayList.size(); rect++) {
-            rectInfo[rect] = rectArrayList.get(rect);
+        System.out.println("Num posts: " + postArrayList.size());
+        postInfo = new double[postArrayList.size()][NUM_POST_VARS];
+        for (int post = 0; post < postArrayList.size(); post++) {
+            postInfo[post] = postArrayList.get(post);
         }
     }
 
